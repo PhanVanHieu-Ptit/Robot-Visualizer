@@ -1,21 +1,26 @@
 import type { Robot, RobotStatus, Shelf, Warehouse, Zone } from '../types';
 
+const SHELF_COLS = [-18, -14, -10, -6, -2, 2, 6, 10, 14, 18];
+const SHELF_ROWS = [-25, -15, -5, 5, 15, 25];
+
 export function generateWarehouse(): Warehouse {
-  const shelves: Shelf[] = Array.from({ length: 20 }, (_, i) => ({
-    id: `shelf-${i}`,
-    x: (i % 5) * 8 - 16,
-    y: 0,
-    z: Math.floor(i / 5) * 8 - 16,
-    capacity: 100,
-  }));
+  const shelves: Shelf[] = SHELF_ROWS.flatMap((z, rowIdx) =>
+    SHELF_COLS.map((x, colIdx) => ({
+      id: `shelf-${rowIdx}-${colIdx}`,
+      x,
+      y: 0,
+      z,
+      capacity: 100,
+    })),
+  );
 
   const zones: Zone[] = [
-    { id: 'zone-charging', name: 'Charging', x: -22, z: -22, width: 6, depth: 6, type: 'charging' },
-    { id: 'zone-entry', name: 'Entry', x: 18, z: -22, width: 8, depth: 6, type: 'entry' },
-    { id: 'zone-staging', name: 'Staging', x: -22, z: 18, width: 8, depth: 8, type: 'staging' },
+    { id: 'zone-charging', name: 'Charging', x: -38, z: -30, width: 14, depth: 12, type: 'charging' },
+    { id: 'zone-storage',  name: 'Storage',  x: 0,   z: 0,   width: 60, depth: 52, type: 'storage'  },
+    { id: 'zone-dispatch', name: 'Dispatch', x: 38,  z: 30,  width: 14, depth: 12, type: 'dispatch' },
   ];
 
-  return { width: 50, depth: 50, height: 10, shelves, zones };
+  return { width: 100, depth: 80, height: 10, shelves, zones };
 }
 
 const STATUSES: RobotStatus[] = ['idle', 'moving', 'charging', 'error'];

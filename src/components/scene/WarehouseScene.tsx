@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { useRobotStore } from '../../store/robotStore';
 import { WarehouseFloor } from './WarehouseFloor';
+import { ShelfUnit } from './ShelfUnit';
 import { RobotMesh } from './RobotMesh';
 
 export function WarehouseScene() {
@@ -12,16 +13,38 @@ export function WarehouseScene() {
 
   return (
     <Canvas
-      camera={{ position: [30, 30, 30], fov: 50 }}
+      camera={{ position: [0, 60, 80], fov: 50 }}
       shadows
       style={{ width: '100%', height: '100%' }}
       onPointerMissed={() => setSelectedRobot(null)}
     >
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[20, 30, 20]} intensity={1.5} castShadow />
-      <hemisphereLight args={['#334155', '#0f172a', 0.4]} />
+      <fog attach="fog" args={['#d0d8e0', 150, 300]} />
 
-      <WarehouseFloor width={warehouse.width} depth={warehouse.depth} />
+      <ambientLight intensity={0.4} />
+
+      <directionalLight
+        position={[40, 50, 30]}
+        intensity={1.5}
+        castShadow
+        shadow-mapSize={[2048, 2048]}
+        shadow-camera-left={-60}
+        shadow-camera-right={60}
+        shadow-camera-top={50}
+        shadow-camera-bottom={-50}
+      />
+
+      <pointLight position={[-30, 15, -25]} intensity={0.6} color="#fff5e0" />
+      <pointLight position={[ 30, 15, -25]} intensity={0.6} color="#fff5e0" />
+      <pointLight position={[-30, 15,  25]} intensity={0.6} color="#fff5e0" />
+      <pointLight position={[ 30, 15,  25]} intensity={0.6} color="#fff5e0" />
+
+      <WarehouseFloor
+        width={warehouse.width}
+        depth={warehouse.depth}
+        zones={warehouse.zones}
+      />
+
+      <ShelfUnit shelves={warehouse.shelves} />
 
       {robots.map((robot) => (
         <RobotMesh
@@ -32,7 +55,14 @@ export function WarehouseScene() {
         />
       ))}
 
-      <OrbitControls makeDefault />
+      <OrbitControls
+        makeDefault
+        target={[0, 0, 0]}
+        minDistance={10}
+        maxDistance={200}
+        enableDamping
+        dampingFactor={0.05}
+      />
     </Canvas>
   );
 }
