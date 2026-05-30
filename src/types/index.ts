@@ -36,3 +36,13 @@ export interface Warehouse {
   shelves: Shelf[];
   zones: Zone[];
 }
+
+export interface SimulationStats {
+  totalRobots: number;
+  active: number;
+  idle: number;
+  charging: number;
+  errors: number;
+  avgBattery: number;
+  tasksCompleted: number;
+}
