@@ -50,8 +50,7 @@ export function WarehouseScene() {
         <RobotMesh
           key={robot.id}
           robot={robot}
-          selected={selectedRobotId === robot.id}
-          onClick={() => setSelectedRobot(selectedRobotId === robot.id ? null : robot.id)}
+          isSelected={selectedRobotId === robot.id}
         />
       ))}
 
