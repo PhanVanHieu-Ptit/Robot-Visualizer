@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import * as THREE from 'three';
 import type { Shelf } from '../../types';
 
@@ -8,6 +8,7 @@ interface ShelfUnitProps {
 
 export function ShelfUnit({ shelves }: ShelfUnitProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
+  const shelfGeo = useMemo(() => new THREE.BoxGeometry(2, 8, 1), []);
 
   useEffect(() => {
     if (!meshRef.current) return;
@@ -23,10 +24,10 @@ export function ShelfUnit({ shelves }: ShelfUnitProps) {
     <instancedMesh
       ref={meshRef}
       args={[undefined, undefined, shelves.length]}
+      geometry={shelfGeo}
       castShadow
       receiveShadow
     >
-      <boxGeometry args={[2, 8, 1]} />
       <meshStandardMaterial color="#8B7355" roughness={0.85} />
     </instancedMesh>
   );

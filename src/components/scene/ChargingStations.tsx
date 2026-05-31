@@ -1,4 +1,4 @@
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 import { CHARGING_STATION_POSITIONS } from '../../constants/warehouse';
@@ -12,6 +12,8 @@ interface StationProps {
 function ChargingStation({ x, z, index }: StationProps) {
   const padMatRef  = useRef<THREE.MeshStandardMaterial>(null);
   const beamMatRef = useRef<THREE.MeshStandardMaterial>(null);
+  const padGeo  = useMemo(() => new THREE.PlaneGeometry(4, 4), []);
+  const beamGeo = useMemo(() => new THREE.CylinderGeometry(0.3, 0.3, 8, 16), []);
 
   useFrame(({ clock }) => {
     const phase = clock.elapsedTime * 1.5 + index * 0.5;
@@ -28,8 +30,7 @@ function ChargingStation({ x, z, index }: StationProps) {
   return (
     <group position={[x, 0, z]}>
       {/* Glowing floor pad */}
-      <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-        <planeGeometry args={[4, 4]} />
+      <mesh position={[0, 0.01, 0]} rotation={[-Math.PI / 2, 0, 0]} geometry={padGeo} receiveShadow>
         <meshStandardMaterial
           ref={padMatRef}
           color="#FFB800"
@@ -42,8 +43,7 @@ function ChargingStation({ x, z, index }: StationProps) {
       </mesh>
 
       {/* Vertical light beam — cylinder centered at y=4, total height 8 */}
-      <mesh position={[0, 4, 0]}>
-        <cylinderGeometry args={[0.3, 0.3, 8, 16]} />
+      <mesh position={[0, 4, 0]} geometry={beamGeo}>
         <meshStandardMaterial
           ref={beamMatRef}
           color="#4488FF"

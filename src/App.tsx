@@ -1,8 +1,9 @@
-import { useEffect, useRef } from 'react';
+import { Suspense, useEffect, useRef } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
 import { useFleetSimulation } from './hooks/useFleetSimulation';
 import { useRobotStore } from './store/robotStore';
 import { WarehouseScene } from './components/scene/WarehouseScene';
+import { LoadingScreen } from './components/ui/LoadingScreen';
 import { FleetStatusHUD } from './components/ui/FleetStatusHUD';
 import { ControlPanel } from './components/ui/ControlPanel';
 import { TimelineBar } from './components/ui/TimelineBar';
@@ -13,7 +14,8 @@ export default function App() {
   const { stats, forceCharge, resetError } = useFleetSimulation(!connected);
   const pushTimelinePoint = useRobotStore((s) => s.pushTimelinePoint);
 
-  const prevTasksRef = useRef(0);
+  const prevTasksRef      = useRef(0);
+  const screenshotRef     = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -26,9 +28,11 @@ export default function App() {
 
   return (
     <div className="w-screen h-screen relative bg-gray-950 text-white overflow-hidden">
-      <WarehouseScene />
+      <Suspense fallback={<LoadingScreen />}>
+        <WarehouseScene screenshotTriggerRef={screenshotRef} />
+      </Suspense>
       <FleetStatusHUD />
-      <ControlPanel />
+      <ControlPanel onScreenshot={() => screenshotRef.current?.()} />
       <TimelineBar />
       <RobotDetailPanel onForceCharge={forceCharge} onResetError={resetError} />
     </div>
