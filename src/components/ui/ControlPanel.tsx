@@ -29,7 +29,11 @@ function ToggleButton({ active, onClick, label }: ToggleButtonProps) {
   );
 }
 
-export function ControlPanel() {
+interface ControlPanelProps {
+  onScreenshot: () => void;
+}
+
+export function ControlPanel({ onScreenshot }: ControlPanelProps) {
   const showPaths = useRobotStore((s) => s.showPaths);
   const showLabels = useRobotStore((s) => s.showLabels);
   const showZones = useRobotStore((s) => s.showZones);
@@ -40,10 +44,13 @@ export function ControlPanel() {
   const toggleZones = useRobotStore((s) => s.toggleZones);
   const setSimulationSpeed = useRobotStore((s) => s.setSimulationSpeed);
   const setCameraPreset = useRobotStore((s) => s.setCameraPreset);
+  const selectedRobotId = useRobotStore((s) => s.selectedRobotId);
 
   return (
     <div
-      className="absolute top-4 right-4 pointer-events-auto"
+      className={`absolute top-4 pointer-events-auto transition-all duration-300 ${
+        selectedRobotId ? 'right-76' : 'right-4'
+      }`}
       style={{ zIndex: 10 }}
     >
       <div className="bg-gray-900/80 backdrop-blur-md rounded-xl border border-gray-700/50 p-4 w-52 space-y-4">
@@ -93,6 +100,15 @@ export function ControlPanel() {
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="pt-1 border-t border-gray-700/40">
+          <button
+            onClick={onScreenshot}
+            className="w-full px-3 py-1.5 rounded text-xs font-medium bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white transition-colors"
+          >
+            Save screenshot
+          </button>
         </div>
       </div>
     </div>

@@ -9,9 +9,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@react-spring/three": "^10.1.0",
     "@react-three/drei": "latest",
     "@react-three/fiber": "latest",
+    "@react-three/postprocessing": "^3.0.4",
     "lucide-react": "latest",
+    "postprocessing": "^6.39.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-is": "^19.2.6",

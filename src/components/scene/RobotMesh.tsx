@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -109,7 +109,7 @@ function SelectionRing() {
   );
 }
 
-export function RobotMesh() {
+function _RobotMesh() {
   const bodyMeshRef    = useRef<THREE.InstancedMesh>(null);
   const domeMeshRef    = useRef<THREE.InstancedMesh>(null);
   const antennaMeshRef = useRef<THREE.InstancedMesh>(null);
@@ -122,6 +122,13 @@ export function RobotMesh() {
 
   const lerpedPos  = useRef<Map<string, { x: number; y: number; z: number }>>(new Map());
   const hoveredIdx = useRef<number | null>(null);
+
+  // LOD + frustum culling scratch objects
+  const { camera } = useThree();
+  const camDistRef       = useRef(0);
+  const frustum          = useMemo(() => new THREE.Frustum(), []);
+  const projScreenMatrix = useMemo(() => new THREE.Matrix4(), []);
+  const frustumPt        = useMemo(() => new THREE.Vector3(), []);
 
   const setSelectedRobot = useRobotStore((s) => s.setSelectedRobot);
 
@@ -156,6 +163,14 @@ export function RobotMesh() {
     if (!bodyMeshRef.current || !domeMeshRef.current ||
         !antennaMeshRef.current || !wheelMeshRef.current) return;
 
+    // LOD: hide detail meshes when camera is far from scene centre
+    camDistRef.current = camera.position.length();
+    const isLOD = camDistRef.current > 80;
+
+    // Frustum culling: update once per frame
+    projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+    frustum.setFromProjectionMatrix(projScreenMatrix);
+
     robots.forEach((robot, i) => {
       if (i >= MAX_ROBOTS) return;
 
@@ -175,6 +190,21 @@ export function RobotMesh() {
       lp.x += (tgtX - lp.x) * 0.1;
       lp.y += (tgtY - lp.y) * 0.1;
       lp.z += (tgtZ - lp.z) * 0.1;
+
+      // Skip robots outside camera frustum
+      frustumPt.set(lp.x, lp.y, lp.z);
+      if (!frustum.containsPoint(frustumPt)) {
+        dummy.scale.setScalar(0);
+        dummy.updateMatrix();
+        bodyMeshRef.current!.setMatrixAt(i, dummy.matrix);
+        if (!isLOD) {
+          domeMeshRef.current!.setMatrixAt(i, dummy.matrix);
+          antennaMeshRef.current!.setMatrixAt(i, dummy.matrix);
+          for (let w = 0; w < 4; w++) wheelMeshRef.current!.setMatrixAt(i * 4 + w, dummy.matrix);
+        }
+        dummy.scale.setScalar(1);
+        return;
+      }
 
       const isHovered = hoveredIdx.current === i;
       const scaleVal  = isHovered ? 1.15 : 1.0;
@@ -233,6 +263,11 @@ export function RobotMesh() {
 
     if (bodyMeshRef.current.instanceColor)   bodyMeshRef.current.instanceColor.needsUpdate   = true;
     if (domeMeshRef.current.instanceColor)   domeMeshRef.current.instanceColor.needsUpdate   = true;
+
+    // LOD: suppress detail geometry draws at distance
+    domeMeshRef.current.count    = isLOD ? 0 : robots.length;
+    antennaMeshRef.current.count = isLOD ? 0 : robots.length;
+    wheelMeshRef.current.count   = isLOD ? 0 : robots.length * 4;
   });
 
   return (
@@ -284,3 +319,5 @@ export function RobotMesh() {
     </>
   );
 }
+
+export const RobotMesh = React.memo(_RobotMesh, () => true);

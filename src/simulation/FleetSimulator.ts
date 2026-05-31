@@ -51,7 +51,7 @@ function isInNoGoZone(x: number, z: number): boolean {
 }
 
 function nearestStation(x: number, z: number): { x: number; z: number } {
-  let nearest = CHARGING_STATIONS[0];
+  let nearest: { x: number; z: number } = CHARGING_STATIONS[0];
   let minDist = Infinity;
   for (const s of CHARGING_STATIONS) {
     const d = Math.hypot(s.x - x, s.z - z);
