@@ -1,4 +1,5 @@
 import type { Robot, RobotStatus, SimulationStats } from '../types';
+import { CHARGING_STATION_POSITIONS } from '../constants/warehouse';
 
 const FLOOR_X_MIN = -45;
 const FLOOR_X_MAX = 45;
@@ -10,10 +11,7 @@ const SHELF_ROWS = [-25, -15, -5, 5, 15, 25];
 const SHELF_HALF_W = 1;
 const SHELF_HALF_D = 1;
 
-const CHARGING_STATIONS = [
-  { x: -44, z: -34 }, { x: -40, z: -34 }, { x: -36, z: -34 },
-  { x: -44, z: -28 }, { x: -40, z: -28 }, { x: -36, z: -28 },
-];
+const CHARGING_STATIONS = CHARGING_STATION_POSITIONS;
 
 const ARRIVAL_THRESHOLD = 0.5;
 const BATTERY_DRAIN = 0.01;
@@ -206,7 +204,29 @@ export class FleetSimulator {
   }
 
   getRobots(): Robot[] {
-    return this.states.map(s => ({ ...s.robot }));
+    return this.states.map(s => ({
+      ...s.robot,
+      targetX: s.targetX,
+      targetZ: s.targetZ,
+    }));
+  }
+
+  forceCharge(id: string): void {
+    const state = this.states.find(s => s.robot.id === id);
+    if (!state) return;
+    const station = nearestStation(state.robot.x, state.robot.z);
+    state.targetX = station.x;
+    state.targetZ = station.z;
+    state.isChargingRoute = true;
+    state.robot.status = 'moving';
+    state.robot.batteryLevel = Math.max(state.robot.batteryLevel, 1);
+  }
+
+  resetError(id: string): void {
+    const state = this.states.find(s => s.robot.id === id);
+    if (!state) return;
+    state.robot.status = 'idle';
+    state.nextTaskAt = this.simTime + 1000;
   }
 
   getStats(): SimulationStats {

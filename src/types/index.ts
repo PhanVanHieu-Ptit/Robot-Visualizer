@@ -9,6 +9,13 @@ export interface Robot {
   speed: number;
   batteryLevel: number;
   taskId?: string;
+  targetX?: number;
+  targetZ?: number;
+}
+
+export interface TimelinePoint {
+  time: number;
+  tasksPerSecond: number;
 }
 
 export interface Shelf {

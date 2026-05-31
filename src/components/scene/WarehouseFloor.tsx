@@ -10,9 +10,10 @@ interface WarehouseFloorProps {
   width?: number;
   depth?: number;
   zones?: Zone[];
+  showZones?: boolean;
 }
 
-export function WarehouseFloor({ width = 100, depth = 80, zones = [] }: WarehouseFloorProps) {
+export function WarehouseFloor({ width = 100, depth = 80, zones = [], showZones = true }: WarehouseFloorProps) {
   const gridSize = Math.max(width, depth);
   return (
     <group>
@@ -23,7 +24,7 @@ export function WarehouseFloor({ width = 100, depth = 80, zones = [] }: Warehous
 
       <gridHelper args={[gridSize, gridSize, '#a0a0a0', '#c8c8c8']} />
 
-      {zones.map((zone) => (
+      {showZones && zones.map((zone) => (
         <mesh
           key={zone.id}
           position={[zone.x, 0.01, zone.z]}

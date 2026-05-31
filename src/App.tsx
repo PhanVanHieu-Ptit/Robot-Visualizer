@@ -1,26 +1,36 @@
-import { useSimulation } from './hooks/useSimulation';
+import { useEffect, useRef } from 'react';
 import { useWebSocket } from './hooks/useWebSocket';
+import { useFleetSimulation } from './hooks/useFleetSimulation';
+import { useRobotStore } from './store/robotStore';
 import { WarehouseScene } from './components/scene/WarehouseScene';
-import { RobotList } from './components/ui/RobotList';
-import { RobotDetail } from './components/ui/RobotDetail';
-import { StatusBar } from './components/ui/StatusBar';
+import { FleetStatusHUD } from './components/ui/FleetStatusHUD';
+import { ControlPanel } from './components/ui/ControlPanel';
+import { TimelineBar } from './components/ui/TimelineBar';
+import { RobotDetailPanel } from './components/ui/RobotDetailPanel';
 
 export default function App() {
   const { connected } = useWebSocket();
-  useSimulation(!connected);
+  const { stats, forceCharge, resetError } = useFleetSimulation(!connected);
+  const pushTimelinePoint = useRobotStore((s) => s.pushTimelinePoint);
+
+  const prevTasksRef = useRef(0);
+
+  useEffect(() => {
+    const id = setInterval(() => {
+      const delta = stats.tasksCompleted - prevTasksRef.current;
+      prevTasksRef.current = stats.tasksCompleted;
+      pushTimelinePoint({ time: Date.now(), tasksPerSecond: Math.max(0, delta) });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [stats.tasksCompleted, pushTimelinePoint]);
 
   return (
-    <div className="w-screen h-screen flex flex-col bg-gray-950 text-white overflow-hidden">
-      <StatusBar connected={connected} />
-      <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 relative">
-          <WarehouseScene />
-        </div>
-        <aside className="w-72 flex flex-col border-l border-gray-800 overflow-hidden bg-gray-900">
-          <RobotList />
-          <RobotDetail />
-        </aside>
-      </div>
+    <div className="w-screen h-screen relative bg-gray-950 text-white overflow-hidden">
+      <WarehouseScene />
+      <FleetStatusHUD />
+      <ControlPanel />
+      <TimelineBar />
+      <RobotDetailPanel onForceCharge={forceCharge} onResetError={resetError} />
     </div>
   );
 }
