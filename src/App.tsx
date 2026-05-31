@@ -9,9 +9,11 @@ import { ControlPanel } from './components/ui/ControlPanel';
 import { TimelineBar } from './components/ui/TimelineBar';
 import { RobotDetailPanel } from './components/ui/RobotDetailPanel';
 
+const isDemoMode = new URLSearchParams(window.location.search).get('demo') === 'true';
+
 export default function App() {
   const { connected } = useWebSocket();
-  const { stats, forceCharge, resetError } = useFleetSimulation(!connected);
+  const { stats, forceCharge, resetError } = useFleetSimulation(!connected, isDemoMode);
   const pushTimelinePoint = useRobotStore((s) => s.pushTimelinePoint);
 
   const prevTasksRef      = useRef(0);
