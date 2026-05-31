@@ -12,7 +12,7 @@ Browser-native digital twin simulating 50+ concurrent autonomous mobile robots (
 
 ## Live Demo
 
-**[robot-visualizer.vercel.app](https://robot-visualizer.vercel.app)**
+**[robotviz.vercel.app](https://robotviz.vercel.app)**
 
 Add `?demo=true` to auto-play a scripted scenario:
 - **t = 5 s** — 3 robots simultaneously route to charging stations
@@ -24,10 +24,10 @@ Add `?demo=true` to auto-play a scripted scenario:
 ## Screenshots
 
 <!-- Replace with actual screenshots once deployed -->
-| 3D Fleet View | Robot Detail Panel |
-|---|---|
-| ![Fleet overview](docs/screenshot-fleet.png) | ![Detail panel](docs/screenshot-detail.png) |
-
+| 3D Fleet View 
+|---|
+| <img width="1920" height="934" alt="image" src="https://github.com/user-attachments/assets/b2692001-ceb1-4412-8f8d-16115528d8fe" />|
+| <img width="1919" height="933" alt="image" src="https://github.com/user-attachments/assets/3fff8331-b674-4447-8735-956cf531e583" />|
 ---
 
 ## Key Technical Challenges Solved
