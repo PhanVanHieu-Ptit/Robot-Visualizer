@@ -1,135 +1,286 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
+import { useRef, useMemo, useEffect } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import { Html } from '@react-three/drei';
 import * as THREE from 'three';
-import type { Robot } from '../../types';
 import { useRobotStore } from '../../store/robotStore';
+import type { Robot } from '../../types';
+import { CHARGING_STATION_POSITIONS } from '../../constants/warehouse';
 
-const STATUS_MAT: Record<Robot['status'], { color: string; emissive: string; emissiveIntensity: number }> = {
-  idle:     { color: '#4B9EFF', emissive: '#000000', emissiveIntensity: 0.0 },
-  moving:   { color: '#00D084', emissive: '#00D084', emissiveIntensity: 0.2 },
-  charging: { color: '#FFB800', emissive: '#FFB800', emissiveIntensity: 0.3 },
-  error:    { color: '#FF4444', emissive: '#FF4444', emissiveIntensity: 0.4 },
+const MAX_ROBOTS = 200;
+
+const STATUS_COLOR_HEX: Record<Robot['status'], string> = {
+  idle:     '#4B9EFF',
+  moving:   '#00D084',
+  charging: '#FFB800',
+  error:    '#FF4444',
 };
 
-const WHEEL_POSITIONS: [number, number, number][] = [
+const WHEEL_OFFSETS: [number, number, number][] = [
   [-0.65, -0.3,  0.65],
   [ 0.65, -0.3,  0.65],
   [-0.65, -0.3, -0.65],
   [ 0.65, -0.3, -0.65],
 ];
 
-interface RobotMeshProps {
-  robot: Robot;
-  isSelected: boolean;
+function getSnapTarget(robot: Robot): { x: number; z: number } | null {
+  if (robot.status !== 'charging') return null;
+  return (
+    CHARGING_STATION_POSITIONS.find(
+      (s) => Math.hypot(s.x - robot.x, s.z - robot.z) < 2.0
+    ) ?? null
+  );
 }
 
-export function RobotMesh({ robot, isSelected }: RobotMeshProps) {
-  const setSelectedRobot = useRobotStore((s) => s.setSelectedRobot);
+function RobotLabels() {
+  const robots = useRobotStore((s) => s.robots);
+  const showLabels = useRobotStore((s) => s.showLabels);
+  const { camera } = useThree();
+  const camPos = useRef(new THREE.Vector3());
 
-  const groupRef    = useRef<THREE.Group>(null);
-  const domeMatRef  = useRef<THREE.MeshStandardMaterial>(null);
-  const wheelRefs   = useRef<(THREE.Mesh | null)[]>([null, null, null, null]);
-  const lerpTarget  = useRef(new THREE.Vector3(robot.x, robot.y, robot.z));
-  const scaleTarget = useRef(new THREE.Vector3(1, 1, 1));
-  const hoveredRef  = useRef(false);
-
-  useFrame(({ clock }) => {
-    if (!groupRef.current) return;
-    const t = clock.elapsedTime;
-
-    // Idle hover float
-    const floatY = robot.status === 'idle' ? Math.sin(t * 2) * 0.05 : 0;
-
-    // Position lerp
-    lerpTarget.current.set(robot.x, robot.y + floatY, robot.z);
-    groupRef.current.position.lerp(lerpTarget.current, 0.1);
-
-    // Scale lerp (hover effect)
-    scaleTarget.current.setScalar(hoveredRef.current ? 1.15 : 1.0);
-    groupRef.current.scale.lerp(scaleTarget.current, 0.1);
-
-    // Wheel rotation
-    if (robot.status === 'moving') {
-      wheelRefs.current.forEach((w) => {
-        if (w) w.rotation.y += robot.speed * 0.05;
-      });
-    }
-
-    // Emissive pulse animation
-    if (domeMatRef.current) {
-      if (robot.status === 'charging') {
-        domeMatRef.current.emissiveIntensity = 0.1 + 0.3 * (0.5 + 0.5 * Math.sin(t * 2));
-      } else if (robot.status === 'error') {
-        domeMatRef.current.emissiveIntensity = 0.4 * (0.5 + 0.5 * Math.sin(t * 8));
-      }
-    }
-  });
-
-  const mat = STATUS_MAT[robot.status];
+  if (!showLabels) return null;
 
   return (
-    <group
-      ref={groupRef}
-      position={[robot.x, robot.y, robot.z]}
-      onClick={(e) => {
-        e.stopPropagation();
-        setSelectedRobot(isSelected ? null : robot.id);
-      }}
-      onPointerOver={() => { hoveredRef.current = true; }}
-      onPointerOut={() => { hoveredRef.current = false; }}
-    >
-      {/* Body — main platform */}
-      <mesh castShadow receiveShadow>
-        <boxGeometry args={[1.5, 0.8, 1.5]} />
-        <meshStandardMaterial color={mat.color} metalness={0.6} roughness={0.3} />
-      </mesh>
+    <>
+      {robots.map((robot) => {
+        camPos.current.copy(camera.position);
+        const dist = camPos.current.distanceTo(
+          new THREE.Vector3(robot.x, robot.y, robot.z)
+        );
+        if (dist > 50) return null;
 
-      {/* Top sensor dome */}
-      <mesh position={[0, 0.6, 0]} castShadow>
+        const batteryColor =
+          robot.batteryLevel > 50 ? '#4ade80'
+          : robot.batteryLevel > 20 ? '#facc15'
+          : '#f87171';
+
+        return (
+          <Html
+            key={robot.id}
+            position={[robot.x, robot.y + 2.5, robot.z]}
+            center
+            distanceFactor={8}
+            zIndexRange={[1, 2]}
+          >
+            <div
+              style={{
+                background: 'rgba(17, 24, 39, 0.85)',
+                border: '1px solid rgba(75, 85, 99, 0.6)',
+                borderRadius: '6px',
+                padding: '2px 7px',
+                fontSize: '10px',
+                color: '#e5e7eb',
+                whiteSpace: 'nowrap',
+                backdropFilter: 'blur(4px)',
+                pointerEvents: 'none',
+                lineHeight: '1.6',
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>{robot.id}</span>
+              <span style={{ color: '#9ca3af', margin: '0 4px' }}>·</span>
+              <span style={{ color: batteryColor }}>{robot.batteryLevel.toFixed(0)}%</span>
+            </div>
+          </Html>
+        );
+      })}
+    </>
+  );
+}
+
+function SelectionRing() {
+  const selectedRobotId = useRobotStore((s) => s.selectedRobotId);
+  const robots = useRobotStore((s) => s.robots);
+  const robot = robots.find((r) => r.id === selectedRobotId);
+  if (!robot) return null;
+  return (
+    <mesh
+      position={[robot.x, robot.y - 0.45, robot.z]}
+      rotation={[-Math.PI / 2, 0, 0]}
+    >
+      <ringGeometry args={[0.9, 1.2, 32]} />
+      <meshStandardMaterial
+        color="#4B9EFF"
+        emissive="#4B9EFF"
+        emissiveIntensity={1.0}
+        transparent
+        opacity={0.8}
+        depthWrite={false}
+      />
+    </mesh>
+  );
+}
+
+export function RobotMesh() {
+  const bodyMeshRef    = useRef<THREE.InstancedMesh>(null);
+  const domeMeshRef    = useRef<THREE.InstancedMesh>(null);
+  const antennaMeshRef = useRef<THREE.InstancedMesh>(null);
+  const wheelMeshRef   = useRef<THREE.InstancedMesh>(null);
+
+  // Pre-allocated scratch objects — never recreated inside useFrame
+  const dummy = useMemo(() => new THREE.Object3D(), []);
+  const color = useMemo(() => new THREE.Color(), []);
+  const hsl   = useMemo(() => ({ h: 0, s: 0, l: 0 }), []);
+
+  const lerpedPos  = useRef<Map<string, { x: number; y: number; z: number }>>(new Map());
+  const hoveredIdx = useRef<number | null>(null);
+
+  const setSelectedRobot = useRobotStore((s) => s.setSelectedRobot);
+
+  // Hide all unused slots on mount (prevents ghost robots at origin)
+  useEffect(() => {
+    const meshes = [bodyMeshRef, domeMeshRef, antennaMeshRef];
+    dummy.scale.setScalar(0);
+    dummy.updateMatrix();
+
+    for (const meshRef of meshes) {
+      if (!meshRef.current) continue;
+      for (let i = 0; i < MAX_ROBOTS; i++) {
+        meshRef.current.setMatrixAt(i, dummy.matrix);
+      }
+      meshRef.current.instanceMatrix.needsUpdate = true;
+    }
+
+    if (wheelMeshRef.current) {
+      for (let i = 0; i < MAX_ROBOTS * 4; i++) {
+        wheelMeshRef.current.setMatrixAt(i, dummy.matrix);
+      }
+      wheelMeshRef.current.instanceMatrix.needsUpdate = true;
+    }
+
+    dummy.scale.setScalar(1);
+  }, [dummy]);
+
+  useFrame(({ clock }) => {
+    const robots = useRobotStore.getState().robots;
+    const t = clock.elapsedTime;
+
+    if (!bodyMeshRef.current || !domeMeshRef.current ||
+        !antennaMeshRef.current || !wheelMeshRef.current) return;
+
+    robots.forEach((robot, i) => {
+      if (i >= MAX_ROBOTS) return;
+
+      // Initialize lerped position on first encounter
+      if (!lerpedPos.current.has(robot.id)) {
+        lerpedPos.current.set(robot.id, { x: robot.x, y: robot.y, z: robot.z });
+      }
+      const lp = lerpedPos.current.get(robot.id)!;
+
+      // Charging snap: visually pull robot to nearest station when within 2 units
+      const snap = getSnapTarget(robot);
+      const tgtX = snap ? snap.x : robot.x;
+      const tgtZ = snap ? snap.z : robot.z;
+      const floatY = robot.status === 'idle' ? Math.sin(t * 2 + i) * 0.05 : 0;
+      const tgtY = robot.y + floatY;
+
+      lp.x += (tgtX - lp.x) * 0.1;
+      lp.y += (tgtY - lp.y) * 0.1;
+      lp.z += (tgtZ - lp.z) * 0.1;
+
+      const isHovered = hoveredIdx.current === i;
+      const scaleVal  = isHovered ? 1.15 : 1.0;
+
+      // Body
+      dummy.position.set(lp.x, lp.y, lp.z);
+      dummy.scale.setScalar(scaleVal);
+      dummy.rotation.set(0, 0, 0);
+      dummy.updateMatrix();
+      bodyMeshRef.current!.setMatrixAt(i, dummy.matrix);
+
+      // Status color with pulse simulation via HSL lightness
+      color.set(STATUS_COLOR_HEX[robot.status]);
+      if (robot.status === 'charging') {
+        color.getHSL(hsl);
+        color.setHSL(hsl.h, hsl.s, hsl.l * (0.7 + 0.3 * (0.5 + 0.5 * Math.sin(t * 2))));
+      } else if (robot.status === 'error') {
+        color.getHSL(hsl);
+        color.setHSL(hsl.h, hsl.s, hsl.l * (0.5 + 0.5 * Math.sin(t * 8)));
+      }
+      bodyMeshRef.current!.setColorAt(i, color);
+
+      // Dome (offset up from body center)
+      dummy.position.set(lp.x, lp.y + 0.6 * scaleVal, lp.z);
+      dummy.scale.setScalar(scaleVal);
+      dummy.updateMatrix();
+      domeMeshRef.current!.setMatrixAt(i, dummy.matrix);
+      domeMeshRef.current!.setColorAt(i, color);
+
+      // Antenna
+      dummy.position.set(lp.x, lp.y + 1.1 * scaleVal, lp.z);
+      dummy.scale.setScalar(scaleVal);
+      dummy.updateMatrix();
+      antennaMeshRef.current!.setMatrixAt(i, dummy.matrix);
+
+      // Wheels (4 per robot, indices i*4 … i*4+3)
+      const wheelSpin = robot.status === 'moving' ? t * robot.speed * 3 : 0;
+      WHEEL_OFFSETS.forEach((offset, w) => {
+        const wi = i * 4 + w;
+        dummy.position.set(
+          lp.x + offset[0] * scaleVal,
+          lp.y + offset[1] * scaleVal,
+          lp.z + offset[2] * scaleVal,
+        );
+        dummy.scale.setScalar(scaleVal);
+        dummy.rotation.set(Math.PI / 2, wheelSpin, 0);
+        dummy.updateMatrix();
+        wheelMeshRef.current!.setMatrixAt(wi, dummy.matrix);
+      });
+    });
+
+    bodyMeshRef.current.instanceMatrix.needsUpdate    = true;
+    domeMeshRef.current.instanceMatrix.needsUpdate    = true;
+    antennaMeshRef.current.instanceMatrix.needsUpdate = true;
+    wheelMeshRef.current.instanceMatrix.needsUpdate   = true;
+
+    if (bodyMeshRef.current.instanceColor)   bodyMeshRef.current.instanceColor.needsUpdate   = true;
+    if (domeMeshRef.current.instanceColor)   domeMeshRef.current.instanceColor.needsUpdate   = true;
+  });
+
+  return (
+    <>
+      {/* Body */}
+      <instancedMesh
+        ref={bodyMeshRef}
+        args={[undefined, undefined, MAX_ROBOTS]}
+        castShadow
+        receiveShadow
+        onClick={(e) => {
+          e.stopPropagation();
+          if (e.instanceId === undefined) return;
+          const robots = useRobotStore.getState().robots;
+          const robot = robots[e.instanceId];
+          if (!robot) return;
+          const current = useRobotStore.getState().selectedRobotId;
+          setSelectedRobot(current === robot.id ? null : robot.id);
+        }}
+        onPointerOver={(e) => {
+          if (e.instanceId !== undefined) hoveredIdx.current = e.instanceId;
+        }}
+        onPointerOut={() => { hoveredIdx.current = null; }}
+      >
+        <boxGeometry args={[1.5, 0.8, 1.5]} />
+        <meshStandardMaterial metalness={0.6} roughness={0.3} />
+      </instancedMesh>
+
+      {/* Sensor dome */}
+      <instancedMesh ref={domeMeshRef} args={[undefined, undefined, MAX_ROBOTS]} castShadow>
         <sphereGeometry args={[0.4, 12, 12]} />
-        <meshStandardMaterial
-          ref={domeMatRef}
-          color={mat.color}
-          emissive={mat.emissive}
-          emissiveIntensity={mat.emissiveIntensity}
-          metalness={0.4}
-          roughness={0.3}
-        />
-      </mesh>
+        <meshStandardMaterial metalness={0.4} roughness={0.3} />
+      </instancedMesh>
 
       {/* Antenna */}
-      <mesh position={[0, 1.1, 0]} castShadow>
+      <instancedMesh ref={antennaMeshRef} args={[undefined, undefined, MAX_ROBOTS]} castShadow>
         <cylinderGeometry args={[0.04, 0.04, 0.5, 6]} />
         <meshStandardMaterial color="#888888" metalness={0.8} roughness={0.2} />
-      </mesh>
+      </instancedMesh>
 
-      {/* Wheels — outer group orients cylinder, inner mesh ref is animated */}
-      {WHEEL_POSITIONS.map((pos, i) => (
-        <group key={i} position={pos} rotation={[Math.PI / 2, 0, 0]}>
-          <mesh
-            ref={(el) => { wheelRefs.current[i] = el; }}
-            castShadow
-          >
-            <cylinderGeometry args={[0.25, 0.25, 0.15, 8]} />
-            <meshStandardMaterial color="#222222" roughness={0.9} metalness={0.1} />
-          </mesh>
-        </group>
-      ))}
+      {/* Wheels — 4 per robot */}
+      <instancedMesh ref={wheelMeshRef} args={[undefined, undefined, MAX_ROBOTS * 4]} castShadow>
+        <cylinderGeometry args={[0.25, 0.25, 0.15, 8]} />
+        <meshStandardMaterial color="#222222" roughness={0.9} metalness={0.1} />
+      </instancedMesh>
 
-      {/* Selection ring */}
-      {isSelected && (
-        <mesh position={[0, -0.45, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-          <ringGeometry args={[0.9, 1.2, 32]} />
-          <meshStandardMaterial
-            color="#4B9EFF"
-            emissive="#4B9EFF"
-            emissiveIntensity={1.0}
-            transparent
-            opacity={0.8}
-            depthWrite={false}
-          />
-        </mesh>
-      )}
-    </group>
+      <RobotLabels />
+      <SelectionRing />
+    </>
   );
 }
