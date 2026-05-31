@@ -229,6 +229,29 @@ export class FleetSimulator {
     state.nextTaskAt = this.simTime + 1000;
   }
 
+  triggerError(id: string): void {
+    const state = this.states.find(s => s.robot.id === id);
+    if (!state) return;
+    state.robot.status = 'error';
+  }
+
+  triggerActivityBurst(): void {
+    for (const state of this.states) {
+      if (state.robot.status === 'idle') {
+        const t = randomFloorTarget();
+        state.targetX = t.x;
+        state.targetZ = t.z;
+        state.isChargingRoute = false;
+        state.robot.taskId = `task-burst-${Math.floor(Math.random() * 1000)}`;
+        state.robot.status = 'moving';
+      }
+    }
+  }
+
+  getRobotIds(): string[] {
+    return this.states.map(s => s.robot.id);
+  }
+
   getStats(): SimulationStats {
     const robots = this.getRobots();
     const total = robots.length;
